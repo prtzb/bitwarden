@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitwarden-web
+  namespace: bitwarden
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    name: bitwarden-http
+  selector:
+    app: bitwarden-frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitwarden-db
+  namespace: bitwarden
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    name: bitwarden-mysql
+  selector:
+    app: bitwarden-backend
