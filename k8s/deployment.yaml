@@ -1,0 +1,142 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bitwarden-frontend
+  namespace: bitwarden
+  labels:
+    app: bitwarden-frontend
+spec:
+  selector:
+    matchLabels:
+      app: bitwarden-frontend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: bitwarden-frontend
+    spec:
+      containers:
+        - name: bitwarden
+          image: bitwarden/self-host:beta
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "Europe/Stockholm"
+            - name: BW_DOMAIN
+              value: bitwarden.linnaeus.dev
+            - name: BW_DB_PROVIDER
+              value: mysql
+            - name: BW_DB_SERVER
+              value: bitwarden-db.bitwarden
+            - name: BW_DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: DB_DATABASE
+                  name: bitwarden-db-secret
+            - name: BW_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: DB_USERNAME
+                  name: bitwarden-db-secret
+            - name: BW_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PASSWORD
+                  name: bitwarden-db-secret
+            - name: BW_INSTALLATION_ID
+              valueFrom:
+                secretKeyRef:
+                  key: INSTALLATION_ID
+                  name: bitwarden-install-secret
+            - name: BW_INSTALLATION_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: INSTALLATION_KEY
+                  name: bitwarden-install-secret
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: bitwarden-etc
+              mountPath: /etc/bitwarden
+            - name: bitwarden-logs
+              mountPath: /var/log/bitwarden
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: "1"
+      volumes:
+        - name: bitwarden-etc
+          persistentVolumeClaim:
+            claimName: bitwarden-pvc-etc
+        - name: bitwarden-logs
+          persistentVolumeClaim:
+            claimName: bitwarden-pvc-logs
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bitwarden-backend
+  namespace: bitwarden
+  labels:
+    app: bitwarden-backend
+spec:
+  selector:
+    matchLabels:
+      app: bitwarden-backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: bitwarden-backend
+    spec:
+      containers:
+        - name: bitwarden-backend
+          template:
+            metadata:
+              labels:
+                app: bitwarden-backend
+          image: mariadb:10
+          imagePullPolicy: IfNotPresent
+          securityContext:
+              runAsUser: 65534
+              allowPrivilegeEscalation: false
+          env:
+            - name: MARIADB_RANDOM_ROOT_PASSWORD
+              value: "true"
+            - name: MARIADB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: DB_DATABASE
+                  name: bitwarden-db-secret
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: DB_USERNAME
+                  name: bitwarden-db-secret
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: DB_PASSWORD
+                  name: bitwarden-db-secret
+          volumeMounts:
+            - name: bitwarden-data
+              mountPath: /var/lib/mysql
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: "1"
+      volumes:
+        - name: bitwarden-data
+          persistentVolumeClaim:
+            claimName: bitwarden-pvc-data
